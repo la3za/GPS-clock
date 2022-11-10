@@ -365,7 +365,7 @@ void showAltitude() {
   int x=90, y=200, f=4;                            // screen position & font
   int alt;
   if (usUnits) alt = gps.altitude.feet();          // get altitude in feet
-    else alt = gps.altitude.meters();              // in m
+    else       alt = gps.altitude.meters();        // in m
   tft.setTextPadding(tft.textWidth("18888",f));    // width of altitude display
   tft.drawNumber(alt,x,y,f);                       // display altitude
 }
@@ -375,7 +375,7 @@ void showSpeed() {
   int dir = gps.course.deg();                      // get bearing in degrees
   int vel;                                         // replaced variable 'mph' with 'vel'
   if (usUnits) vel = gps.speed.mph();              // get speed in miles/hour
-  else vel = gps.speed.kmph();                     // kmh
+    else       vel = gps.speed.kmph();             // kmh
   tft.setTextPadding(tft.textWidth("888",f));      // width of speed & bearing 
   tft.drawNumber(vel,x,y,f);                       // display speed  
   x += 76;                                         // x-offset for bearing            
@@ -522,9 +522,9 @@ void showDate(time_t t) {
   tft.setTextColor(DATECOLOR, TFT_BLACK);
   tft.fillRect(x,y,265,26,TFT_BLACK);              // erase previous date  
   x+=tft.drawString(days[weekday(t)-1],x,y,f);     // show day of week
-  x+=tft.drawString(", ",x,y,f);                   // and  
-
-  if (usUnits) {   
+ 
+  if (usUnits) {  
+    x+=tft.drawString(", ",x,y,f);                 // and comma + space, 
     x+=tft.drawNumber(month(t),x,y,f);             // show date as month/day/year
     x+=tft.drawChar('/',x,y,f);
     x+=tft.drawNumber(day(t),x,y,f);
@@ -532,6 +532,7 @@ void showDate(time_t t) {
   }
   else
   {
+    x+=tft.drawString(" ",x,y,f);                  // and space,
     x+=tft.drawNumber(day(t),x,y,f);               // show date as day.month.year
     x+=tft.drawChar('.',x,y,f);
     x+=tft.drawNumber(month(t),x,y,f);                  
