@@ -12,6 +12,11 @@
                 Timezone library     1.2.4
        Legal:   Copyright (c) 2022  Bruce E. Hall.
                 Open Source under the terms of the MIT License. 
+
+        Fork:   Sverre Holm, LA3ZA
+        Date:   10. Nov 2022
+     Purpose:   Make a Europeanized version with different date format, and kmh, m for speed, altitude display
+                Also have possibility for removing battery icon, when run from a USB supply      
     
  Description:   GPS Clock, accurate to within a few microseconds!
 
@@ -54,33 +59,51 @@
 #include <TinyGPS++.h>                             // https://github.com/mikalhart/TinyGPSPlus
 #include <Timezone.h>                              // https://github.com/JChristensen/Timezone
 
-TimeChangeRule EDT                                 // Local Timezone setup. My zone is EST/EDT.
-  = {"EDT", Second, Sun, Mar, 2, -240};            // Set Daylight time here.  UTC-4hrs
-TimeChangeRule EST                                 // For ex: "First Sunday in Nov at 02:00"
-  = {"EST", First, Sun, Nov, 2, -300};             // Set Standard time here.  UTC-5hrs
-TimeChangeRule *tz;                                // pointer to current time change rule
-Timezone myTZ(EDT, EST);                           // create timezone object with rules above
+//Central European Time (Frankfurt, Paris): OK
+ TimeChangeRule CEST = {"CEST", Last, Sun, Mar, 2, 120};     //Central European Summer Time, UTC + 120 min = 2 hrs
+ TimeChangeRule CET = {"CET ", Last, Sun, Oct, 3, 60};       //Central European Time. UTC + 60 min = 1 hr
+ TimeChangeRule *tz; 
+ Timezone myTZ(CEST, CET);
+
+
+//TimeChangeRule EDT                                 // Local Timezone setup. My zone is EST/EDT.
+//  = {"EDT", Second, Sun, Mar, 2, -240};            // Set Daylight time here.  UTC-4hrs
+//TimeChangeRule EST                                 // For ex: "First Sunday in Nov at 02:00"
+//  = {"EST", First, Sun, Nov, 2, -300};             // Set Standard time here.  UTC-5hrs
+//TimeChangeRule *tz;                                // pointer to current time change rule
+//Timezone myTZ(EDT, EST);                           // create timezone object with rules above
 
 #define BATTERY                PB0                 // Battery voltage monitor
 #define BACKLIGHT              PB1                 // pin for screen backlight control
 #define AUDIO                  PB9                 // microcontroller audio output pin
-#define GPS_TX                PA10                 // GPS data on hardware serial RX1
+//#define GPS_TX                PA10                 // GPS data on hardware serial RX1
+
+// Must be added 9.11.2022; Sverre Holm
+// https://github.com/stm32duino/wiki/wiki/API#hardwareserial
+//                      RX    TX
+HardwareSerial Serial1(PA10, PA9);
+
+
 #define GPS_PPS               PA11                 // GPS 1PPS signal to hardware interrupt pin
 
 #define USING_PPS             true                 // true if GPS_PPS line connected; false otherwise.
 #define BAUD_RATE             9600                 // data rate of GPS module
-#define GRID_SQUARE_SIZE         8                 // 0 (none), 4 (EM79), 6 (EM79vr), up to 10 char
+#define GRID_SQUARE_SIZE         6                 // 0 (none), 4 (EM79), 6 (EM79vr), up to 10 char
 #define FIRST_SCREEN             0                 // 0 = time/locn; 1= dual time; 2= location/elevation/speed
 #define SYNC_MARGINAL         3600                 // orange status if no sync for 3600s = 1 hour
 #define SYNC_LOST            86400                 // red status if no sync for 1 day
 #define serial             Serial1                 // hardware UART#1 for GPS data 
 #define TITLE            "GPS TIME"                // shown at top of display
 #define SHOW_LOCAL_TIME       true                 // show local or UTC time at startup?
-#define LOCAL_FORMAT_12HR     true                 // local time format 12hr "11:34" vs 24hr "23:34"
+#define LOCAL_FORMAT_12HR     false                // local time format 12hr "11:34" vs 24hr "23:34"
 #define UTC_FORMAT_12HR      false                 // UTC time format 12 hr "11:34" vs 24hr "23:34"
 #define HOUR_LEADING_ZERO    false                 // "01:00" vs " 1:00"
-#define DATE_LEADING_ZERO     true                 // "Feb 07" vs. "Feb 7"
-#define DATE_ABOVE_MONTH     false                 // "12 Feb" vs. "Feb 12" 
+#define DATE_LEADING_ZERO    false                 // "Feb 07" vs. "Feb 7"
+#define DATE_ABOVE_MONTH      true                 // "12 Feb" vs. "Feb 12" 
+
+// New Sverre Holm 10.11.2022:
+#define US_UNITS             false                // feet, mph, Middle-Endian date with '/' instead of m, kmh, Little-endian date with '.'
+#define BATTERY_DISPLAY      false                // if upper right battery indicator and level are shown or not
 
 #define TIMECOLOR         TFT_CYAN
 #define DATECOLOR       TFT_YELLOW
@@ -118,6 +141,10 @@ int screenID = 0;                                  // 0=time, 1=dual time, 2=loc
 char gridSquare[12]= {0};                          // holds current grid square string
 unsigned long battTimer = BATTERYINTERVAL;         // time that battery level was last checked
 bool secondTick    = SECOND_TICK;
+
+// New Sverre Holm 10.11.2022:
+bool usUnits       = US_UNITS;                     // feet, mph vs m, kmh
+bool battDisplay   = BATTERY_DISPLAY;              // show battery symbol + level
 
 
 typedef struct {
@@ -234,8 +261,10 @@ void checkBatteryTimer()
     battTimer = millis();                          // reset timer
     float v = batteryVoltage();                    // get battery voltage         
     int level = batteryLevel(v);                   // and level 0..4
-    drawBatteryIcon(level);                        // display battery icon
-    showBatteryVoltage(v);                         // and voltage
+    if (battDisplay){
+      drawBatteryIcon(level);                        // display battery icon
+      showBatteryVoltage(v);                         // and voltage
+    }
     if (level) setBrightness(level*25);            // dim screen to conserve power
     else {                                         // power is nearly exhausted, so
       soundAlarm();                                // sound an alarm
@@ -318,14 +347,25 @@ void locationScreen() {
   tft.drawString("  Altitude    ",30,180,2);       // label for clock status
   tft.drawString("  Speed/Course   ",160,180,2);   // label for segment status
   tft.setTextColor(DATECOLOR);
-  tft.drawString("mph",200,204,2);                 // label for speed units
+
+  if (usUnits) {
+    tft.drawString("mph",200,204,2);                 // label for speed units
+    tft.drawString("ft.",94,204,2);                  // label for altitude units
+  }
+  else 
+    { 
+    tft.drawString("kmh",200,204,2);                 // label for speed units
+    tft.drawString("m",94,204,2);                  // label for altitude units
+    }
   tft.drawString("deg",275,204,2);                 // label for bearing units
-  tft.drawString("ft.",94,204,2);                  // label for altitude units
+ 
 }
 
 void showAltitude() {
   int x=90, y=200, f=4;                            // screen position & font
-  int alt = gps.altitude.feet();                   // get altitude in feet
+  int alt;
+  if (usUnits) alt = gps.altitude.feet();          // get altitude in feet
+    else alt = gps.altitude.meters();              // in m
   tft.setTextPadding(tft.textWidth("18888",f));    // width of altitude display
   tft.drawNumber(alt,x,y,f);                       // display altitude
 }
@@ -333,11 +373,13 @@ void showAltitude() {
 void showSpeed() {
   int x=196, y=200, f=4;                           // screen position & font
   int dir = gps.course.deg();                      // get bearing in degrees
-  int mph = gps.speed.mph();                       // get speed in miles/hour
+  int vel;                                         // replaced variable 'mph' with 'vel'
+  if (usUnits) vel = gps.speed.mph();              // get speed in miles/hour
+  else vel = gps.speed.kmph();                     // kmh
   tft.setTextPadding(tft.textWidth("888",f));      // width of speed & bearing 
-  tft.drawNumber(mph,x,y,f);                       // display speed  
+  tft.drawNumber(vel,x,y,f);                       // display speed  
   x += 76;                                         // x-offset for bearing            
-  if (mph) tft.drawNumber(dir,x,y,f);              // display bearing
+  if (vel) tft.drawNumber(dir,x,y,f);              // display bearing
   else tft.drawString("",x,y,f);                   // but no bearing if speed=0 
 }
 
@@ -480,11 +522,21 @@ void showDate(time_t t) {
   tft.setTextColor(DATECOLOR, TFT_BLACK);
   tft.fillRect(x,y,265,26,TFT_BLACK);              // erase previous date  
   x+=tft.drawString(days[weekday(t)-1],x,y,f);     // show day of week
-  x+=tft.drawString(", ",x,y,f);                   // and     
-  x+=tft.drawNumber(month(t),x,y,f);               // show date as month/day/year
-  x+=tft.drawChar('/',x,y,f);
-  x+=tft.drawNumber(day(t),x,y,f);
-  x+=tft.drawChar('/',x,y,f);
+  x+=tft.drawString(", ",x,y,f);                   // and  
+
+  if (usUnits) {   
+    x+=tft.drawNumber(month(t),x,y,f);             // show date as month/day/year
+    x+=tft.drawChar('/',x,y,f);
+    x+=tft.drawNumber(day(t),x,y,f);
+    x+=tft.drawChar('/',x,y,f);
+  }
+  else
+  {
+    x+=tft.drawNumber(day(t),x,y,f);               // show date as day.month.year
+    x+=tft.drawChar('.',x,y,f);
+    x+=tft.drawNumber(month(t),x,y,f);                  
+    x+=tft.drawChar('.',x,y,f);
+  }
   x+=tft.drawNumber(year(t),x,y,f);
 }
 
