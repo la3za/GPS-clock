@@ -13,8 +13,8 @@
        Legal:   Copyright (c) 2022  Bruce E. Hall.
                 Open Source under the terms of the MIT License. 
 
-        Fork:   Sverre Holm, LA3ZA
-        Date:   10. Nov 2022
+        Fork:   Sverre Holm, https://la3za.blogspot.com/
+        Date:   16 Nov 2022
      Purpose:   Make a Europeanized version with different date format, and kmh, m for speed, altitude display
                 Also have possibility for removing battery icon, when run from a USB supply      
     
@@ -588,7 +588,7 @@ void showClockStatus() {
   else color = TFT_RED;                            // time is stale & should not be trusted
   tft.fillRoundRect(x,y,w,h,10,color);             // show clock status as a color
   tft.setTextColor(TFT_BLACK,color);
-  tft.drawNumber(satCount(),x+8,y+6,f);            // and number of satellites
+  tft.drawNumber(satCount(),x+8,y+6,f);          // and number of satellites
 }
 
 void showLatLon(int x, int y, int f, int spacer, int decimals) {
@@ -645,7 +645,8 @@ void syncWithGPS() {                               // set Arduino time from GPS
 
 int satCount() {                                   // return # of satellites in view
   int sats = 0;                                    // number of satellites
-  if (gps.satellites.isValid())
+                                                   // Sverre Holm, 16.11.2022: replaced gps.satellites.isValid() in order that
+  if (gps.satellites.isUpdated())                  // no of sats should go to 0 if loss of gps
     sats = gps.satellites.value();                 // get # of satellites in view
   return sats;                                   
 }
