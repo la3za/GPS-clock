@@ -14,9 +14,10 @@
                 Open Source under the terms of the MIT License. 
 
         Fork:   Sverre Holm, https://la3za.blogspot.com/
-        Date:   16 Nov 2022
+        Date:   16 Nov 2022, 2 April 2023
      Purpose:   Make a Europeanized version with different date format, and kmh, m for speed, altitude display
-                Also have possibility for removing battery icon, when run from a USB supply      
+                Also have possibility for removing battery icon, when run from a USB supply 
+                UTC time - added ekstra spaces after UTC (in order to overwrite 4-letter time zone, e.g. CEST)     
     
  Description:   GPS Clock, accurate to within a few microseconds!
 
@@ -441,7 +442,7 @@ void showTimeZoneD (int x, int y) {
   tft.setTextColor(LABEL_FGCOLOR,LABEL_BGCOLOR);   // set text colors
   tft.setTextPadding(tft.textWidth("WWWWW",4));    // width of 5-char TZ
   if (!useLocalTime) 
-    tft.drawString("UTC",x,y,f);                   // UTC time
+    tft.drawString("UTC",x,y,f);                   // UTC time 
   else if (tz!=NULL)
     tft.drawString(tz->abbrev,x,y,f);              // show local time zone
   tft.setTextPadding(0);
@@ -556,7 +557,7 @@ void showTimeZone () {
   int x=250,y=80,ft=4;                             // screen position & font
   tft.setTextColor(ZONECOLOR,TFT_BLACK);           // zone has its own color
   if (!useLocalTime) 
-    tft.drawString("UTC",x,y,ft);                  // UTC time
+    tft.drawString("UTC   ",x,y,ft);               // UTC time - 2.4.2023 added ekstra spaces after UTC (in order to overwrite 4-letter time zone, e.g. CEST)
   else if (tz!=NULL)
     tft.drawString(tz->abbrev,x,y,ft);             // show local time zone
 }
