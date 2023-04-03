@@ -4,7 +4,7 @@
 Backwards compatible version which can be Europeanized with formats for date and units. It also has possibility for removing battery icon, when run from a USB supply. 
 
 New boolean variables to set:
-1. US_UNITS - if false: m, kmh, Little-endian date with '.', if true: feet, mph, Middle-Endian date with '/'
+1. US_UNITS - if false: m, kmh, Little-endian date with '.' (example: 20.11.2022), if true: feet, mph, Middle-Endian date with '/' (example: 11/20/2022)
 2. BATTERY_DISPLAY - true: as original code, false: no display of battery icon and status
 
 ### Fixes
